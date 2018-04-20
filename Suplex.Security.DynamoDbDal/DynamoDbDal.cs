@@ -23,6 +23,26 @@ namespace Suplex.Security.DynamoDbDal
 
         public string SecureObjectTable { get; set; }
 
+        private readonly AmazonDynamoDBConfig _clientConfig;
+        private readonly AmazonDynamoDBClient _client;
+        private readonly JsonSerializerSettings _settings = new JsonSerializerSettings()
+        {
+            TypeNameHandling = TypeNameHandling.Objects,
+            MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+        };
+
+        public DynamoDbDal()
+        {
+            _clientConfig = new AmazonDynamoDBConfig();
+            _client = new AmazonDynamoDBClient( _clientConfig );
+        }
+
+        public DynamoDbDal(AmazonDynamoDBClient client, AmazonDynamoDBConfig clientConfig)
+        {
+            _client = client;
+            _clientConfig = clientConfig;
+        }
+
         public User GetUserByUId(Guid userUId)
         {
             User user;
@@ -35,22 +55,13 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, UserTable );
+                Table table = Table.LoadTable( _client, UserTable );
                 if ( table != null )
                 {
                     Document document = table.GetItem( userUId );
                     string json = document.ToJsonPretty();
                     Console.WriteLine( json );
-                    user = JsonConvert.DeserializeObject<User>( json, settings );
+                    user = JsonConvert.DeserializeObject<User>( json, _settings );
                 }
                 else
                 {
@@ -76,16 +87,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, UserTable );
+                Table table = Table.LoadTable( _client, UserTable );
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
@@ -99,7 +101,7 @@ namespace Suplex.Security.DynamoDbDal
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
-                            User user = JsonConvert.DeserializeObject<User>( json, settings );
+                            User user = JsonConvert.DeserializeObject<User>( json, _settings );
                             userList.Add( user );
                         }
                     } while ( !search.IsDone );
@@ -128,19 +130,10 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                string output = JsonConvert.SerializeObject( user, Formatting.Indented, settings );
+                string output = JsonConvert.SerializeObject( user, Formatting.Indented, _settings );
                 Document doc = Document.FromJson( output );
 
-                Table table = Table.LoadTable( client, UserTable );
+                Table table = Table.LoadTable( _client, UserTable );
                 if ( table != null )
                 {
                     table.PutItem( doc );
@@ -168,16 +161,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, UserTable );
+                Table table = Table.LoadTable( _client, UserTable );
                 if ( table != null )
                 {
                     table.DeleteItem( userUId );
@@ -212,22 +196,13 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, GroupTable );
+                Table table = Table.LoadTable( _client, GroupTable );
                 if ( table != null )
                 {
                     Document document = table.GetItem( groupUId );
                     string json = document.ToJsonPretty();
                     Console.WriteLine( json );
-                    group = JsonConvert.DeserializeObject<Group>( json, settings );
+                    group = JsonConvert.DeserializeObject<Group>( json, _settings );
                 }
                 else
                 {
@@ -253,16 +228,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, GroupTable );
+                Table table = Table.LoadTable( _client, GroupTable );
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
@@ -276,7 +242,7 @@ namespace Suplex.Security.DynamoDbDal
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
-                            Group group = JsonConvert.DeserializeObject<Group>( json, settings );
+                            Group group = JsonConvert.DeserializeObject<Group>( json, _settings );
                             groupList.Add( group );
                         }
                     } while ( !search.IsDone );
@@ -305,19 +271,10 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                string output = JsonConvert.SerializeObject( group, Formatting.Indented, settings );
+                string output = JsonConvert.SerializeObject( group, Formatting.Indented, _settings );
                 Document doc = Document.FromJson( output );
 
-                Table table = Table.LoadTable( client, GroupTable );
+                Table table = Table.LoadTable( _client, GroupTable );
                 if ( table != null )
                 {
                     table.PutItem( doc );
@@ -345,20 +302,11 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, GroupTable );
+                Table table = Table.LoadTable( _client, GroupTable );
                 if ( table != null )
                 {
                     table.DeleteItem( groupUId );
-                    Document deletedGroup = table.GetItem( (groupUId), new GetItemOperationConfig()
+                    Document deletedGroup = table.GetItem( groupUId, new GetItemOperationConfig()
                     {
                         ConsistentRead = true
                     } );
@@ -378,7 +326,7 @@ namespace Suplex.Security.DynamoDbDal
         }
 
 
-        // TODO: Implement includeDisabledMembership
+        // TODO: Check with Steve on how to implement includeDisabledMembership for GetGroupMembers()
         public IEnumerable<GroupMembershipItem> GetGroupMembers(Guid groupUId, bool includeDisabledMembership = false)
         {
 
@@ -392,16 +340,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, GroupMembershipTable );
+                Table table = Table.LoadTable( _client, GroupMembershipTable );
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
@@ -415,8 +354,8 @@ namespace Suplex.Security.DynamoDbDal
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
-                            GroupMembershipItem sb = JsonConvert.DeserializeObject<GroupMembershipItem>( json, settings );
-                            groupMembershipList.Add( sb );
+                            GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
+                            groupMembershipList.Add( item );
                         }
                     } while ( !search.IsDone );
                 }
@@ -433,6 +372,7 @@ namespace Suplex.Security.DynamoDbDal
             return groupMembershipList;
         }
 
+        // TODO: Check with Steve on how to implement includeDisabledMembership for GetGroupMembership()
         public IEnumerable<GroupMembershipItem> GetGroupMembership(Guid memberUId, bool includeDisabledMembership = false)
         {
             List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
@@ -445,16 +385,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, GroupMembershipTable );
+                Table table = Table.LoadTable( _client, GroupMembershipTable );
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
@@ -468,7 +399,7 @@ namespace Suplex.Security.DynamoDbDal
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
-                            GroupMembershipItem sb = JsonConvert.DeserializeObject<GroupMembershipItem>( json, settings );
+                            GroupMembershipItem sb = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
                             groupMembershipList.Add( sb );
                         }
                     } while ( !search.IsDone );
@@ -496,19 +427,10 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                string output = JsonConvert.SerializeObject( groupMembershipItem, Formatting.Indented, settings );
+                string output = JsonConvert.SerializeObject( groupMembershipItem, Formatting.Indented, _settings );
                 Document doc = Document.FromJson( output );
 
-                Table table = Table.LoadTable( client, GroupMembershipTable );
+                Table table = Table.LoadTable( _client, GroupMembershipTable );
                 if ( table != null )
                 {
                     table.PutItem( doc );
@@ -537,16 +459,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, GroupMembershipTable );
+                Table table = Table.LoadTable( _client, GroupMembershipTable );
                 if ( table != null )
                 {
                     table.DeleteItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId );
@@ -581,22 +494,13 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, SecureObjectTable );
+                Table table = Table.LoadTable( _client, SecureObjectTable );
                 if ( table != null )
                 {
                     Document document = table.GetItem( secureObjectUId );
                     string json = document.ToJsonPretty();
                     Console.WriteLine( json );
-                    secureObject = JsonConvert.DeserializeObject<SecureObject>( json, settings );
+                    secureObject = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
                 }
                 else
                 {
@@ -626,16 +530,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                Table table = Table.LoadTable( client, SecureObjectTable );
+                Table table = Table.LoadTable( _client, SecureObjectTable );
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
@@ -649,7 +544,7 @@ namespace Suplex.Security.DynamoDbDal
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
-                            SecureObject sb = JsonConvert.DeserializeObject<SecureObject>( json, settings );
+                            SecureObject sb = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
                             secureObjectList.Add( sb );
                         }
                     } while ( !search.IsDone );
@@ -680,19 +575,10 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                JsonSerializerSettings settings = new JsonSerializerSettings()
-                {
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-                };
-
-                string output = JsonConvert.SerializeObject( secureObject, Formatting.Indented, settings );
+                string output = JsonConvert.SerializeObject( secureObject, Formatting.Indented, _settings );
                 Document doc = Document.FromJson( output );
 
-                Table table = Table.LoadTable( client, SecureObjectTable );
+                Table table = Table.LoadTable( _client, SecureObjectTable );
                 if ( table != null )
                 {
                     table.PutItem( doc );
@@ -721,10 +607,7 @@ namespace Suplex.Security.DynamoDbDal
 
             try
             {
-                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
-                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
-
-                Table table = Table.LoadTable( client, SecureObjectTable );
+                Table table = Table.LoadTable( _client, SecureObjectTable );
                 if ( table != null )
                 {
                     table.DeleteItem( secureObjectUId );

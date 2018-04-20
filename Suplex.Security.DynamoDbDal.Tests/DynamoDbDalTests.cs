@@ -14,7 +14,6 @@ namespace Suplex.Security.DynamoDbDal.Tests
         private string _groupTable = "Suplex.Group";
         private string _groupPrefix = "Group.";
         private string _groupMembershipTable = "Suplex.GroupMembership";
-        private string _groupMembershipItemPrefix = "GroupMembershipItem.";
         private string _secureObjectTable = "Suplex.SecureObject";
         private string _secureObjectPrefix = "SecureObject.";
 
