@@ -1,6 +1,7 @@
 ﻿using System;
 using Amazon.DynamoDBv2.Model;
 using NUnit.Framework;
+using Suplex.Security.AclModel;
 using Suplex.Security.Principal;
 
 namespace Suplex.Security.DynamoDbDal.Tests
@@ -12,6 +13,8 @@ namespace Suplex.Security.DynamoDbDal.Tests
         private string _userPrefix = "User.";
         private string _groupTable = "Suplex.Group";
         private string _groupPrefix = "Group.";
+        private string _groupMembershipTable = "Suplex.GroupMembership";
+        private string _groupMembershipItemPrefix = "GroupMembershipItem.";
         private string _secureObjectTable = "Suplex.SecureObject";
         private string _secureObjectPrefix = "SecureObject.";
 
@@ -218,6 +221,191 @@ namespace Suplex.Security.DynamoDbDal.Tests
             {
                 Assert.AreEqual( group.UId, group.UId );
                 Assert.AreEqual( group.Name, group.Name );
+            }
+        }
+
+        [Test]
+        public void UpsertGroupMembership_Valid_Succeeds()
+        {
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+            GroupMembershipItem upsertedGroupMembershipItem = dal.UpsertGroupMembership( groupMembershipItem );
+            Assert.AreEqual( upsertedGroupMembershipItem.GroupUId, groupMembershipItem.GroupUId );
+            Assert.AreEqual( upsertedGroupMembershipItem.MemberUId, groupMembershipItem.MemberUId );
+        }
+
+        [Test]
+        public void DeleteGroupMembership_Existing_Group_Succeeds()
+        {
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+
+            GroupMembershipItem gmi = new GroupMembershipItem
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+            dal.UpsertGroupMembership( gmi );
+
+            Assert.DoesNotThrow( () => dal.DeleteGroupMembership( gmi ) );
+        }
+
+        [Test]
+        public void UpsertSecureObject_Valid_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            ISecureObject secureObject = dal.UpsertSecureObject( sObject );
+            Assert.AreEqual( secureObject.UId, sObject.UId );
+            Assert.AreEqual( secureObject.UniqueName, sObject.UniqueName );
+        }
+
+        [Test]
+        public void DeleteSecureObject_Existing_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            dal.UpsertSecureObject( sObject );
+
+            Assert.DoesNotThrow( () => dal.DeleteSecureObject( sObject.UId.Value ) );
+        }
+
+        [Test]
+        public void GetSecureObjectByUId_Existing_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            dal.UpsertSecureObject( sObject );
+            ISecureObject secureObject = dal.GetSecureObjectByUId( sObject.UId.Value, false );
+            Assert.AreEqual( secureObject.UId, sObject.UId );
+            Assert.AreEqual( secureObject.UniqueName, sObject.UniqueName );
+        }
+
+
+        [Test]
+        public void GetSecureObjectByUniqueName_Existing_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            dal.UpsertSecureObject( sObject );
+            ISecureObject secureObject = dal.GetSecureObjectByUniqueName( sObject.UniqueName, false );
+            Assert.AreEqual( secureObject.UId, sObject.UId );
+            Assert.AreEqual( secureObject.UniqueName, sObject.UniqueName );
+        }
+
+        [Test]
+        public void GetGroupMembers_Existing_Group_Succeeds()
+        {
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+            dal.UpsertGroupMembership( groupMembershipItem );
+
+            var retrievedGroups = dal.GetGroupMembers( groupUId );
+
+            foreach ( var gmi in retrievedGroups )
+            {
+                Assert.AreEqual( gmi.GroupUId, groupUId );
+            }
+        }
+
+        [Test]
+        public void GetGroupMembership_Existing_Group_Succeeds()
+        {
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+            dal.UpsertGroupMembership( groupMembershipItem );
+
+            var retrievedGroups = dal.GetGroupMembership( memberUId );
+
+            foreach ( var gmi in retrievedGroups )
+            {
+                Assert.AreEqual( gmi.MemberUId, memberUId );
             }
         }
     }

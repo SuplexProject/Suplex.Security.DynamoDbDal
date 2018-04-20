@@ -19,6 +19,10 @@ namespace Suplex.Security.DynamoDbDal
         public string UserTable { get; set; }
         public string GroupTable { get; set; }
 
+        public string GroupMembershipTable { get; set; }
+
+        public string SecureObjectTable { get; set; }
+
         public User GetUserByUId(Guid userUId)
         {
             User user;
@@ -114,7 +118,7 @@ namespace Suplex.Security.DynamoDbDal
             return userList;
         }
 
-        public Principal.User UpsertUser(Principal.User user)
+        public User UpsertUser(User user)
         {
             if ( user == null )
                 return null;
@@ -262,7 +266,7 @@ namespace Suplex.Security.DynamoDbDal
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
-                    scanFilter.AddCondition( "Name", ScanOperator.Equal, "Group.70a7a4b6-9326-4cb2-a073-3ffe5379ad2f" );
+                    scanFilter.AddCondition( "Name", ScanOperator.Equal, name );
 
                     Search search = table.Scan( scanFilter );
 
@@ -373,44 +377,374 @@ namespace Suplex.Security.DynamoDbDal
             }
         }
 
+
+        // TODO: Implement includeDisabledMembership
         public IEnumerable<GroupMembershipItem> GetGroupMembers(Guid groupUId, bool includeDisabledMembership = false)
         {
-            throw new NotImplementedException();
+
+            List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
+
+            if ( groupUId == null )
+                throw new Exception( "Group unique Id cannot be null or empty." );
+
+            if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
+                throw new Exception( "GroupMembershipItem table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                Table table = Table.LoadTable( client, GroupMembershipTable );
+                if ( table != null )
+                {
+                    ScanFilter scanFilter = new ScanFilter();
+                    scanFilter.AddCondition( "GroupUId", ScanOperator.Equal, groupUId );
+
+                    Search search = table.Scan( scanFilter );
+
+                    do
+                    {
+                        var documentList = search.GetNextSet();
+                        foreach ( Document document in documentList )
+                        {
+                            string json = document.ToJsonPretty();
+                            GroupMembershipItem sb = JsonConvert.DeserializeObject<GroupMembershipItem>( json, settings );
+                            groupMembershipList.Add( sb );
+                        }
+                    } while ( !search.IsDone );
+                }
+                else
+                {
+                    throw new Exception( $"Table {GroupMembershipTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
+            return groupMembershipList;
         }
 
         public IEnumerable<GroupMembershipItem> GetGroupMembership(Guid memberUId, bool includeDisabledMembership = false)
         {
-            throw new NotImplementedException();
+            List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
+
+            if ( memberUId == null )
+                throw new Exception( "Member unique Id cannot be null or empty." );
+
+            if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
+                throw new Exception( "GroupMembershipItem table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                Table table = Table.LoadTable( client, GroupMembershipTable );
+                if ( table != null )
+                {
+                    ScanFilter scanFilter = new ScanFilter();
+                    scanFilter.AddCondition( "MemberUId", ScanOperator.Equal, memberUId );
+
+                    Search search = table.Scan( scanFilter );
+
+                    do
+                    {
+                        var documentList = search.GetNextSet();
+                        foreach ( Document document in documentList )
+                        {
+                            string json = document.ToJsonPretty();
+                            GroupMembershipItem sb = JsonConvert.DeserializeObject<GroupMembershipItem>( json, settings );
+                            groupMembershipList.Add( sb );
+                        }
+                    } while ( !search.IsDone );
+                }
+                else
+                {
+                    throw new Exception( $"Table {GroupMembershipTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
+            return groupMembershipList;
         }
 
         public GroupMembershipItem UpsertGroupMembership(GroupMembershipItem groupMembershipItem)
         {
-            throw new NotImplementedException();
+            if ( groupMembershipItem == null )
+                return null;
+
+            if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
+                throw new Exception( "GroupMembershipItem table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                string output = JsonConvert.SerializeObject( groupMembershipItem, Formatting.Indented, settings );
+                Document doc = Document.FromJson( output );
+
+                Table table = Table.LoadTable( client, GroupMembershipTable );
+                if ( table != null )
+                {
+                    table.PutItem( doc );
+                }
+                else
+                {
+                    throw new Exception( $"Dynamo table {GroupMembershipTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
+            return groupMembershipItem;
         }
 
         public void DeleteGroupMembership(GroupMembershipItem groupMembershipItem)
         {
-            throw new NotImplementedException();
+
+            if ( groupMembershipItem == null )
+                throw new Exception( "Group membership item cannot be null or empty." );
+
+            if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
+                throw new Exception( "Group membership table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                Table table = Table.LoadTable( client, GroupMembershipTable );
+                if ( table != null )
+                {
+                    table.DeleteItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId );
+                    Document deletedGroup = table.GetItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId, new GetItemOperationConfig()
+                    {
+                        ConsistentRead = true
+                    } );
+                    if ( deletedGroup != null )
+                        throw new Exception( "Group membership item was not deleted successfully." );
+                }
+                else
+                {
+                    throw new Exception( $"Table {GroupMembershipTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
         }
 
-        public ISecureObject GetSecureObjectByUId(Guid secureObjectUId, bool includeChildren)
+        public ISecureObject GetSecureObjectByUId(Guid secureObjectUId, bool includeChildren) // Todo: Implement includeChildren
         {
-            throw new NotImplementedException();
+            SecureObject secureObject;
+
+            if ( secureObjectUId == null || secureObjectUId == Guid.Empty )
+                throw new Exception( "SecureObject unique Id cannot be null or empty." );
+
+            if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
+                throw new Exception( "SecureObject table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                Table table = Table.LoadTable( client, SecureObjectTable );
+                if ( table != null )
+                {
+                    Document document = table.GetItem( secureObjectUId );
+                    string json = document.ToJsonPretty();
+                    Console.WriteLine( json );
+                    secureObject = JsonConvert.DeserializeObject<SecureObject>( json, settings );
+                }
+                else
+                {
+                    throw new Exception( $"Table {SecureObjectTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
+            return secureObject;
         }
 
+        // TODO: Implement includeChildren
         public ISecureObject GetSecureObjectByUniqueName(string uniqueName, bool includeChildren)
         {
-            throw new NotImplementedException();
+            SecureObject secureObject = null;
+
+            List<SecureObject> secureObjectList = new List<SecureObject>();
+
+            if ( string.IsNullOrWhiteSpace( uniqueName ) )
+                throw new Exception( "SecureObject unique Id cannot be null or empty." );
+
+            if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
+                throw new Exception( "SecureObject table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                Table table = Table.LoadTable( client, SecureObjectTable );
+                if ( table != null )
+                {
+                    ScanFilter scanFilter = new ScanFilter();
+                    scanFilter.AddCondition( "UniqueName", ScanOperator.Equal, uniqueName );
+
+                    Search search = table.Scan( scanFilter );
+
+                    do
+                    {
+                        var documentList = search.GetNextSet();
+                        foreach ( Document document in documentList )
+                        {
+                            string json = document.ToJsonPretty();
+                            SecureObject sb = JsonConvert.DeserializeObject<SecureObject>( json, settings );
+                            secureObjectList.Add( sb );
+                        }
+                    } while ( !search.IsDone );
+
+                    if ( secureObjectList.Count > 0 )
+                        secureObject = secureObjectList.First();
+                }
+                else
+                {
+                    throw new Exception( $"Table {SecureObjectTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
+            return secureObject;
         }
 
         public ISecureObject UpsertSecureObject(ISecureObject secureObject)
         {
-            throw new NotImplementedException();
+            if ( secureObject == null )
+                return null;
+
+            if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
+                throw new Exception( "secureObject table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                JsonSerializerSettings settings = new JsonSerializerSettings()
+                {
+                    TypeNameHandling = TypeNameHandling.Objects,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+                };
+
+                string output = JsonConvert.SerializeObject( secureObject, Formatting.Indented, settings );
+                Document doc = Document.FromJson( output );
+
+                Table table = Table.LoadTable( client, SecureObjectTable );
+                if ( table != null )
+                {
+                    table.PutItem( doc );
+                }
+                else
+                {
+                    throw new Exception( $"Dynamo table {SecureObjectTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
+            return secureObject;
+
         }
 
         public void DeleteSecureObject(Guid secureObjectUId)
         {
-            throw new NotImplementedException();
+            if ( secureObjectUId == null )
+                throw new Exception( "Group membership item cannot be null or empty." );
+
+            if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
+                throw new Exception( "Group membership table name must be specified." );
+
+            try
+            {
+                AmazonDynamoDBConfig clientConfig = new AmazonDynamoDBConfig();
+                AmazonDynamoDBClient client = new AmazonDynamoDBClient( clientConfig );
+
+                Table table = Table.LoadTable( client, SecureObjectTable );
+                if ( table != null )
+                {
+                    table.DeleteItem( secureObjectUId );
+                    Document deletedGroup = table.GetItem( secureObjectUId, new GetItemOperationConfig()
+                    {
+                        ConsistentRead = true
+                    } );
+                    if ( deletedGroup != null )
+                        throw new Exception( "Secure object was not deleted successfully." );
+                }
+                else
+                {
+                    throw new Exception( $"Table {SecureObjectTable} cannot be found." );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Debug.Write( ex.Message );
+                throw;
+            }
         }
     }
 }
