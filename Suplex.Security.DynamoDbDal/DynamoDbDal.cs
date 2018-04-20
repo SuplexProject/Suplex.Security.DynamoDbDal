@@ -482,7 +482,7 @@ namespace Suplex.Security.DynamoDbDal
             }
         }
 
-        public ISecureObject GetSecureObjectByUId(Guid secureObjectUId, bool includeChildren) // Todo: Implement includeChildren
+        public ISecureObject GetSecureObjectByUId(Guid secureObjectUId, bool includeChildren)
         {
             SecureObject secureObject;
 
@@ -501,6 +501,8 @@ namespace Suplex.Security.DynamoDbDal
                     string json = document.ToJsonPretty();
                     Console.WriteLine( json );
                     secureObject = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
+                    if ( secureObject != null && !includeChildren )
+                        secureObject.Children = null;
                 }
                 else
                 {
