@@ -178,7 +178,7 @@ namespace Suplex.Security.DynamoDbDal
             Group group;
 
             if ( groupUId == null || groupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be null or empty." );
+                throw new Exception( "Group unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupTable ) )
                 throw new Exception( "Group table name must be specified." );
@@ -186,17 +186,12 @@ namespace Suplex.Security.DynamoDbDal
             try
             {
                 Table table = Table.LoadTable( _client, GroupTable );
-                if ( table != null )
-                {
-                    Document document = table.GetItem( groupUId );
-                    string json = document.ToJsonPretty();
-                    Console.WriteLine( json );
-                    group = JsonConvert.DeserializeObject<Group>( json, _settings );
-                }
-                else
-                {
-                    throw new Exception( $"Table {GroupTable} cannot be found." );
-                }
+                Document document = table.GetItem( groupUId );
+                if ( document == null )
+                    throw new Exception( "Group cannot be found." );
+                string json = document.ToJsonPretty();
+                Console.WriteLine( json );
+                group = JsonConvert.DeserializeObject<Group>( json, _settings );
             }
             catch ( Exception ex )
             {
@@ -224,10 +219,11 @@ namespace Suplex.Security.DynamoDbDal
                     scanFilter.AddCondition( "Name", ScanOperator.Equal, name );
 
                     Search search = table.Scan( scanFilter );
-
                     do
                     {
                         var documentList = search.GetNextSet();
+                        if ( documentList.Count == 0 )
+                            throw new Exception( "Group cannot be found." );
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
@@ -253,7 +249,7 @@ namespace Suplex.Security.DynamoDbDal
         public Group UpsertGroup(Group group)
         {
             if ( group == null )
-                return null;
+                throw new Exception( "Group cannot be null." );
 
             if ( string.IsNullOrWhiteSpace( GroupTable ) )
                 throw new Exception( "Group table name must be specified." );
@@ -284,7 +280,7 @@ namespace Suplex.Security.DynamoDbDal
         public void DeleteGroup(Guid groupUId)
         {
             if ( groupUId == null || groupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be null or empty." );
+                throw new Exception( "Group unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupTable ) )
                 throw new Exception( "Group table name must be specified." );
