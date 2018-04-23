@@ -63,6 +63,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
         [Test]
         public void GetUserByUId_Existing_User_Succeeds()
         {
+            // Arrange
             User user = new User()
             {
                 Name = _userPrefix,
@@ -78,10 +79,86 @@ namespace Suplex.Security.DynamoDbDal.Tests
             };
             dal.UpsertUser( user );
 
-            User retrievedUser = dal.GetUserByUId( user.UId.Value );
-            Assert.AreEqual( retrievedUser.UId, user.UId );
-            Assert.AreEqual( retrievedUser.Name, user.Name );
+            // Act
+            User retUser = dal.GetUserByUId( user.UId.Value );
+
+            // Assert
+            Assert.AreEqual( retUser.UId, user.UId );
+            Assert.AreEqual( retUser.Name, user.Name );
+            Assert.AreEqual( retUser.IsEnabled, user.IsEnabled );
+            Assert.AreEqual( retUser.IsLocal, user.IsLocal );
         }
+
+        [Test]
+        public void GetUserByUId_Empty_UserUId_Throws_Exception()
+        {
+            // Arrange
+            Guid userUId = Guid.Empty;
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetUserByUId( userUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "User unique Id cannot be empty." );
+        }
+
+        [Test]
+        public void GetUserByUId_Null_User_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid userUId = Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetUserByUId( userUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "User table name must be specified." );
+        }
+
+        [Test]
+        public void GetUserByUId_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid userUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.GetUserByUId( userUId ) );
+
+            // Assert
+            StringAssert.Contains( "Requested resource not found", ex.Message );
+        }
+
+        [Test]
+        public void GetUserByUId_Non_Existent_UserUId_Throws_Exception()
+        {
+            // Arrange
+            Guid userUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetUserByUId( userUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "User cannot be found.", ex.Message );
+        }
+
 
         [Test]
         public void GetUserByName_Existing_User_Succeeds()

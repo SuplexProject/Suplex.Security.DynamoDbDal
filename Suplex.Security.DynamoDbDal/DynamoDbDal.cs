@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -47,8 +48,8 @@ namespace Suplex.Security.DynamoDbDal
         {
             User user;
 
-            if ( userUId == null || userUId == Guid.Empty )
-                throw new Exception( "User unique Id cannot be null or empty." );
+            if ( userUId == Guid.Empty )
+                throw new Exception( "User unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( UserTable ) )
                 throw new Exception( "User table name must be specified." );
@@ -59,6 +60,9 @@ namespace Suplex.Security.DynamoDbDal
                 if ( table != null )
                 {
                     Document document = table.GetItem( userUId );
+                    if ( document == null )
+                        throw new Exception( "User cannot be found." );
+
                     string json = document.ToJsonPretty();
                     Console.WriteLine( json );
                     user = JsonConvert.DeserializeObject<User>( json, _settings );
@@ -355,7 +359,14 @@ namespace Suplex.Security.DynamoDbDal
                         {
                             string json = document.ToJsonPretty();
                             GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
-                            groupMembershipList.Add( item );
+                            if ( includeDisabledMembership )
+                            {
+                                groupMembershipList.Add( item );
+                            }
+                            else if ( item.Member.IsEnabled )
+                            {
+                                groupMembershipList.Add( item );
+                            }
                         }
                     } while ( !search.IsDone );
                 }
@@ -399,8 +410,15 @@ namespace Suplex.Security.DynamoDbDal
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
-                            GroupMembershipItem sb = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
-                            groupMembershipList.Add( sb );
+                            GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
+                            if ( includeDisabledMembership )
+                            {
+                                groupMembershipList.Add( item );
+                            }
+                            else if ( item.Member.IsEnabled )
+                            {
+                                groupMembershipList.Add( item );
+                            }
                         }
                     } while ( !search.IsDone );
                 }
