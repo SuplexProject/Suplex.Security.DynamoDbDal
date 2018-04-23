@@ -1,12 +1,8 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Newtonsoft.Json;
 using Suplex.Security.AclModel;
@@ -57,20 +53,13 @@ namespace Suplex.Security.DynamoDbDal
             try
             {
                 Table table = Table.LoadTable( _client, UserTable );
-                if ( table != null )
-                {
-                    Document document = table.GetItem( userUId );
-                    if ( document == null )
-                        throw new Exception( "User cannot be found." );
+                Document document = table.GetItem( userUId );
+                if ( document == null )
+                    throw new Exception( "User cannot be found." );
 
-                    string json = document.ToJsonPretty();
-                    Console.WriteLine( json );
-                    user = JsonConvert.DeserializeObject<User>( json, _settings );
-                }
-                else
-                {
-                    throw new Exception( $"Table {UserTable} cannot be found." );
-                }
+                string json = document.ToJsonPretty();
+                Console.WriteLine( json );
+                user = JsonConvert.DeserializeObject<User>( json, _settings );
             }
             catch ( Exception ex )
             {
@@ -95,13 +84,16 @@ namespace Suplex.Security.DynamoDbDal
                 if ( table != null )
                 {
                     ScanFilter scanFilter = new ScanFilter();
-                    scanFilter.AddCondition( "Name", ScanOperator.Equal, "User.70a7a4b6-9326-4cb2-a073-3ffe5379ad2f" );
+                    scanFilter.AddCondition( "Name", ScanOperator.Equal, name );
 
                     Search search = table.Scan( scanFilter );
 
                     do
                     {
-                        var documentList = search.GetNextSet();
+                        List<Document> documentList = search.GetNextSet();
+                        if ( documentList.Count == 0 )
+                            throw new Exception( "User cannot be found." );
+
                         foreach ( Document document in documentList )
                         {
                             string json = document.ToJsonPretty();
@@ -127,7 +119,7 @@ namespace Suplex.Security.DynamoDbDal
         public User UpsertUser(User user)
         {
             if ( user == null )
-                return null;
+                throw new Exception( "User cannot be null." );
 
             if ( string.IsNullOrWhiteSpace( UserTable ) )
                 throw new Exception( "User table name must be specified." );
@@ -138,14 +130,7 @@ namespace Suplex.Security.DynamoDbDal
                 Document doc = Document.FromJson( output );
 
                 Table table = Table.LoadTable( _client, UserTable );
-                if ( table != null )
-                {
-                    table.PutItem( doc );
-                }
-                else
-                {
-                    throw new Exception( $"Dynamo table {UserTable} cannot be found." );
-                }
+                table.PutItem( doc );
             }
             catch ( Exception ex )
             {
@@ -158,7 +143,7 @@ namespace Suplex.Security.DynamoDbDal
         public void DeleteUser(Guid userUId)
         {
             if ( userUId == null || userUId == Guid.Empty )
-                throw new Exception( "User unique Id cannot be null or empty." );
+                throw new Exception( "User unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( UserTable ) )
                 throw new Exception( "User table name must be specified." );
@@ -169,11 +154,11 @@ namespace Suplex.Security.DynamoDbDal
                 if ( table != null )
                 {
                     table.DeleteItem( userUId );
-                    Document deletedUser = table.GetItem( (userUId), new GetItemOperationConfig()
+                    Document residual = table.GetItem( userUId, new GetItemOperationConfig()
                     {
                         ConsistentRead = true
                     } );
-                    if ( deletedUser != null )
+                    if ( residual != null )
                         throw new Exception( "User was not deleted successfully." );
                 }
                 else
