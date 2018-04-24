@@ -45,7 +45,7 @@ namespace Suplex.Security.DynamoDbDal
             User user;
 
             if ( userUId == Guid.Empty )
-                throw new Exception( "User unique Id cannot be empty." );
+                throw new Exception( "User unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( UserTable ) )
                 throw new Exception( "User table name must be specified." );
@@ -73,7 +73,7 @@ namespace Suplex.Security.DynamoDbDal
         {
             List<User> userList = new List<User>();
             if ( string.IsNullOrWhiteSpace( name ) )
-                throw new Exception( "User's name must be specified." );
+                throw new Exception( "User's name cannot be null or empty." );
 
             if ( string.IsNullOrWhiteSpace( UserTable ) )
                 throw new Exception( "User table name must be specified." );
@@ -143,7 +143,7 @@ namespace Suplex.Security.DynamoDbDal
         public void DeleteUser(Guid userUId)
         {
             if ( userUId == null || userUId == Guid.Empty )
-                throw new Exception( "User unique Id cannot be empty." );
+                throw new Exception( "User unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( UserTable ) )
                 throw new Exception( "User table name must be specified." );
@@ -178,7 +178,7 @@ namespace Suplex.Security.DynamoDbDal
             Group group;
 
             if ( groupUId == null || groupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be empty." );
+                throw new Exception( "Group unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupTable ) )
                 throw new Exception( "Group table name must be specified." );
@@ -280,7 +280,7 @@ namespace Suplex.Security.DynamoDbDal
         public void DeleteGroup(Guid groupUId)
         {
             if ( groupUId == null || groupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be empty." );
+                throw new Exception( "Group unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupTable ) )
                 throw new Exception( "Group table name must be specified." );
@@ -317,7 +317,7 @@ namespace Suplex.Security.DynamoDbDal
             List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
 
             if ( groupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be empty." );
+                throw new Exception( "Group unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
                 throw new Exception( "Group membership table name must be specified." );
@@ -364,7 +364,7 @@ namespace Suplex.Security.DynamoDbDal
             List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
 
             if ( memberUId == Guid.Empty )
-                throw new Exception( "Member unique Id cannot be empty." );
+                throw new Exception( "Member unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
                 throw new Exception( "Group membership table name must be specified." );
@@ -411,10 +411,10 @@ namespace Suplex.Security.DynamoDbDal
                 throw new Exception( "Group membership cannot be null." );
 
             if ( groupMembershipItem.GroupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be empty." );
+                throw new Exception( "Group unique id cannot be empty." );
 
             if ( groupMembershipItem.MemberUId == Guid.Empty )
-                throw new Exception( "Member unique Id cannot be empty." );
+                throw new Exception( "Member unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
                 throw new Exception( "Group membership table name must be specified." );
@@ -442,10 +442,10 @@ namespace Suplex.Security.DynamoDbDal
                 throw new Exception( "Group membership cannot be null." );
 
             if ( groupMembershipItem.GroupUId == Guid.Empty )
-                throw new Exception( "Group unique Id cannot be empty." );
+                throw new Exception( "Group unique id cannot be empty." );
 
             if ( groupMembershipItem.MemberUId == Guid.Empty )
-                throw new Exception( "Member unique Id cannot be empty." );
+                throw new Exception( "Member unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
                 throw new Exception( "Group membership table name must be specified." );
@@ -473,7 +473,7 @@ namespace Suplex.Security.DynamoDbDal
             SecureObject secureObject;
 
             if ( secureObjectUId == Guid.Empty )
-                throw new Exception( "SecureObject unique Id cannot be empty." );
+                throw new Exception( "SecureObject unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
                 throw new Exception( "SecureObject table name must be specified." );

@@ -18,151 +18,6 @@ namespace Suplex.Security.DynamoDbDal.Tests
         private string _secureObjectPrefix = "SecureObject.";
 
         [Test]
-        public void UpsertUser_Null_User_Throws_Exception()
-        {
-            // Arrange
-            User user = null;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = _userTable
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.UpsertUser( user ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( "User cannot be null.", ex.Message );
-
-        }
-
-        [Test]
-        public void UpsertUser_Null_User_Table_Throws_Exception()
-        {
-            // Arrange
-            User user = new User();
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = ""
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.UpsertUser( user ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( "User table name must be specified.", ex.Message );
-
-        }
-
-        [Test]
-        public void UpsertUser_Valid_Details_Succeeds()
-        {
-            // Arrange
-            User user = new User()
-            {
-                Name = _userPrefix,
-                IsBuiltIn = true,
-                IsEnabled = true,
-                IsLocal = true
-            };
-            user.Name = user.Name + user.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = _userTable
-            };
-
-            // Act
-            User upsertedUser = dal.UpsertUser( user );
-
-            // Assert
-            Assert.AreEqual( upsertedUser.UId, user.UId );
-            Assert.AreEqual( upsertedUser.Name, user.Name );
-        }
-
-        [Test]
-        public void UpsertUser_Existing_User_Succeeds()
-        {
-            // Arrange
-            User user = new User()
-            {
-                Name = _userPrefix,
-                IsBuiltIn = true,
-                IsEnabled = true,
-                IsLocal = true
-            };
-            user.Name = user.Name + user.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = _userTable
-            };
-
-            // Act
-            dal.UpsertUser( user );
-            user.IsEnabled = false;
-            dal.UpsertUser( user );
-            User retUser = dal.GetUserByUId( user.UId.Value );
-
-            // Assert
-            Assert.AreEqual( retUser.UId, user.UId );
-            Assert.AreEqual( retUser.Name, user.Name );
-            Assert.AreEqual( retUser.IsEnabled, false );
-        }
-
-        [Test]
-        public void UpsertUser_Non_Existent_Table_Throws_Exception()
-        {
-            User user = new User()
-            {
-                Name = _userPrefix,
-                IsBuiltIn = true,
-                IsEnabled = true,
-                IsLocal = true
-            };
-            user.Name = user.Name + user.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = Guid.NewGuid().ToString()
-            };
-
-            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertUser( user ) );
-            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
-        }
-
-
-        [Test]
-        public void GetUserByUId_Existing_User_Succeeds()
-        {
-            // Arrange
-            User user = new User()
-            {
-                Name = _userPrefix,
-                IsBuiltIn = true,
-                IsEnabled = true,
-                IsLocal = true
-            };
-            user.Name = user.Name + user.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = _userTable
-            };
-            dal.UpsertUser( user );
-
-            // Act
-            User retUser = dal.GetUserByUId( user.UId.Value );
-
-            // Assert
-            Assert.AreEqual( retUser.UId, user.UId );
-            Assert.AreEqual( retUser.Name, user.Name );
-            Assert.AreEqual( retUser.IsEnabled, user.IsEnabled );
-            Assert.AreEqual( retUser.IsLocal, user.IsLocal );
-        }
-
-        [Test]
         public void GetUserByUId_Empty_UserUId_Throws_Exception()
         {
             // Arrange
@@ -176,7 +31,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.GetUserByUId( userUId ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( "User unique Id cannot be empty.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "User unique id cannot be empty.", ex.Message );
         }
 
         [Test]
@@ -232,6 +87,34 @@ namespace Suplex.Security.DynamoDbDal.Tests
             StringAssert.AreEqualIgnoringCase( "User cannot be found.", ex.Message );
         }
 
+        [Test]
+        public void GetUserByUId_Existing_User_Succeeds()
+        {
+            // Arrange
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = true,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+            dal.UpsertUser( user );
+
+            // Act
+            User retUser = dal.GetUserByUId( user.UId.Value );
+
+            // Assert
+            Assert.AreEqual( retUser.UId, user.UId );
+            Assert.AreEqual( retUser.Name, user.Name );
+            Assert.AreEqual( retUser.IsEnabled, user.IsEnabled );
+            Assert.AreEqual( retUser.IsLocal, user.IsLocal );
+        }
 
         [Test]
         public void GetUserByName_Null_Empty_Name_Throws_Exception()
@@ -247,7 +130,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.GetUserByName( name ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( "User's name must be specified.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "User's name cannot be null or empty.", ex.Message );
 
         }
 
@@ -269,28 +152,10 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void GetUserByName_Non_Existent_User_Throws_Exception()
-        {
-            // Arrange
-            string name = "XXX";
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                UserTable = _userTable
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.GetUserByName( name ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( "User cannot be found.", ex.Message );
-        }
-        [Test]
         public void GetUserByName_Non_Existent_Table_Throws_Exception()
         {
             // Arrange
             string name = "XXX";
-
             DynamoDbDal dal = new DynamoDbDal
             {
                 UserTable = "Table-" + Guid.NewGuid()
@@ -301,6 +166,23 @@ namespace Suplex.Security.DynamoDbDal.Tests
 
             // Assert
             StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void GetUserByName_Non_Existent_User_Throws_Exception()
+        {
+            // Arrange
+            string name = "XXX";
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetUserByName( name ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "User cannot be found.", ex.Message );
         }
 
         [Test]
@@ -334,6 +216,119 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
+        public void UpsertUser_Null_User_Throws_Exception()
+        {
+            // Arrange
+            User user = null;
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertUser( user ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "User cannot be null.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertUser_Null_User_Table_Throws_Exception()
+        {
+            // Arrange
+            User user = new User();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertUser( user ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "User table name must be specified.", ex.Message );
+
+        }
+
+        [Test]
+        public void UpsertUser_Non_Existent_Table_Throws_Exception()
+        {
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = true,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = Guid.NewGuid().ToString()
+            };
+
+            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertUser( user ) );
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void UpsertUser_Valid_Details_Succeeds()
+        {
+            // Arrange
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = true,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+
+            // Act
+            dal.UpsertUser( user );
+            User retUser = dal.GetUserByUId( user.UId.Value );
+
+            // Assert
+            Assert.AreEqual( user.UId, retUser.UId );
+            Assert.AreEqual( user.Name, retUser.Name );
+            Assert.AreEqual( user.IsEnabled, retUser.IsEnabled );
+        }
+
+        [Test]
+        public void UpsertUser_Existing_User_Succeeds()
+        {
+            // Arrange
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = true,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                UserTable = _userTable
+            };
+
+            // Act
+            dal.UpsertUser( user );
+            user.IsEnabled = false;
+            dal.UpsertUser( user );
+            User retUser = dal.GetUserByUId( user.UId.Value );
+
+            // Assert
+            Assert.AreEqual( retUser.UId, user.UId );
+            Assert.AreEqual( retUser.Name, user.Name );
+            Assert.AreEqual( retUser.IsEnabled, false );
+        }
+
+        [Test]
         public void DeleteUser_Empty_UserUId_Throws_Exception()
         {
             // Arrange
@@ -347,7 +342,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.DeleteUser( userUId ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( "User unique Id cannot be empty.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "User unique id cannot be empty.", ex.Message );
         }
 
         [Test]
@@ -427,94 +422,6 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void UpsertGroup_Null_Group_Throws_Exception()
-        {
-            // Arrange
-            Group group = null;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = _groupTable
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroup( group ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( "Group cannot be null.", ex.Message );
-
-        }
-
-        [Test]
-        public void UpsertGroup_Null_Group_Table_Throws_Exception()
-        {
-            // Arrange
-            Group group = new Group()
-            {
-                Name = _groupPrefix,
-                IsBuiltIn = false,
-                IsEnabled = true,
-                IsLocal = false
-            };
-            group.Name = group.Name + group.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = ""
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroup( group ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( "Group table name must be specified.", ex.Message );
-
-        }
-
-        [Test]
-        public void UpsertGroup_Valid_Details_Succeeds()
-        {
-            Group group = new Group()
-            {
-                Name = _groupPrefix,
-                IsBuiltIn = false,
-                IsEnabled = true,
-                IsLocal = false
-            };
-            group.Name = group.Name + group.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = _groupTable
-            };
-            Group upsertedGroup = dal.UpsertGroup( group );
-            Assert.AreEqual( group.UId, upsertedGroup.UId );
-            Assert.AreEqual( group.Name, upsertedGroup.Name );
-            Assert.AreEqual( group.IsEnabled, upsertedGroup.IsEnabled );
-        }
-
-        [Test]
-        public void UpsertGroup_Non_Existent_Table_Throws_Exception()
-        {
-            Group group = new Group()
-            {
-                Name = _groupPrefix,
-                IsBuiltIn = false,
-                IsEnabled = true,
-                IsLocal = false
-            };
-            group.Name = group.Name + group.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = Guid.NewGuid().ToString()
-            };
-
-            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertGroup( group ) );
-            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
-        }
-
-        [Test]
         public void GetGroupByUId_Empty_GroupUId_Throws_Exception()
         {
             // Arrange
@@ -528,7 +435,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.GetGroupByUId( groupUId ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "Group unique id cannot be empty.", ex.Message );
         }
 
         [Test]
@@ -607,96 +514,6 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Assert.AreEqual( retGroup.UId, group.UId );
             Assert.AreEqual( retGroup.Name, group.Name );
             Assert.AreEqual( retGroup.IsEnabled, group.IsEnabled );
-        }
-
-        [Test]
-        public void DeleteGroup_Empty_GroupUId_Throws_Exception()
-        {
-            // Arrange
-            Guid groupUId = Guid.Empty;
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = _groupTable
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroup( groupUId ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
-        }
-
-        [Test]
-        public void DeleteGroup_Null_Group_Table_Throws_Exception()
-        {
-            // Arrange
-            Guid groupUId = Guid.NewGuid();
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = ""
-            };
-
-            // Act
-            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroup( groupUId ) );
-
-            // Assert
-            StringAssert.AreEqualIgnoringCase( ex.Message, "Group table name must be specified." );
-        }
-
-        [Test]
-        public void DeleteGroup_Non_Existent_Table_Throws_Exception()
-        {
-            // Arrange
-            Guid groupUId = Guid.NewGuid();
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = "Table-" + Guid.NewGuid()
-            };
-
-            // Act
-            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.DeleteGroup( groupUId ) );
-
-            // Assert
-            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
-        }
-
-
-        [Test]
-        public void DeleteGroup_Non_Existent_Group_Succeeds()
-        {
-            // Arrange
-            Guid groupUId = Guid.NewGuid();
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = _groupTable
-            };
-
-            // Act
-            // Assert
-            Assert.DoesNotThrow( () => dal.DeleteGroup( groupUId ) );
-        }
-
-        [Test]
-        public void DeleteGroup_Existing_Group_Succeeds()
-        {
-            Group newGroup = new Group()
-            {
-                Name = _groupPrefix,
-                IsBuiltIn = true,
-                IsEnabled = true,
-                IsLocal = true
-            };
-            newGroup.Name = newGroup.Name + newGroup.UId;
-
-            DynamoDbDal dal = new DynamoDbDal
-            {
-                GroupTable = _groupTable
-            };
-            dal.UpsertGroup( newGroup );
-
-            Assert.DoesNotThrow( () => dal.DeleteGroup( newGroup.UId.Value ) );
         }
 
         [Test]
@@ -799,6 +616,184 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
+        public void UpsertGroup_Null_Group_Throws_Exception()
+        {
+            // Arrange
+            Group group = null;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = _groupTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroup( group ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group cannot be null.", ex.Message );
+
+        }
+
+        [Test]
+        public void UpsertGroup_Null_Group_Table_Throws_Exception()
+        {
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroup( group ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group table name must be specified.", ex.Message );
+
+        }
+
+        [Test]
+        public void UpsertGroup_Valid_Details_Succeeds()
+        {
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = _groupTable
+            };
+            Group upsertedGroup = dal.UpsertGroup( group );
+            Assert.AreEqual( group.UId, upsertedGroup.UId );
+            Assert.AreEqual( group.Name, upsertedGroup.Name );
+            Assert.AreEqual( group.IsEnabled, upsertedGroup.IsEnabled );
+        }
+
+        [Test]
+        public void UpsertGroup_Non_Existent_Table_Throws_Exception()
+        {
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = Guid.NewGuid().ToString()
+            };
+
+            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertGroup( group ) );
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void DeleteGroup_Empty_GroupUId_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.Empty;
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = _groupTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroup( groupUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group unique id cannot be empty.", ex.Message );
+        }
+
+        [Test]
+        public void DeleteGroup_Null_Group_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroup( groupUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "Group table name must be specified." );
+        }
+
+        [Test]
+        public void DeleteGroup_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.DeleteGroup( groupUId ) );
+
+            // Assert
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+
+        [Test]
+        public void DeleteGroup_Non_Existent_Group_Succeeds()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = _groupTable
+            };
+
+            // Act
+            // Assert
+            Assert.DoesNotThrow( () => dal.DeleteGroup( groupUId ) );
+        }
+
+        [Test]
+        public void DeleteGroup_Existing_Group_Succeeds()
+        {
+            Group newGroup = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = true,
+                IsEnabled = true,
+                IsLocal = true
+            };
+            newGroup.Name = newGroup.Name + newGroup.UId;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupTable = _groupTable
+            };
+            dal.UpsertGroup( newGroup );
+
+            Assert.DoesNotThrow( () => dal.DeleteGroup( newGroup.UId.Value ) );
+        }
+
+        [Test]
         public void UpsertGroupMembership_Null_Group_Membership_Throws_Exception()
         {
             // Arrange
@@ -837,7 +832,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroupMembership( groupMembershipItem ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "Group unique id cannot be empty.", ex.Message );
         }
 
         [Test]
@@ -1028,7 +1023,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroupMembership( gmi ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( ex.Message, "Group unique Id cannot be empty." );
+            StringAssert.AreEqualIgnoringCase( ex.Message, "Group unique id cannot be empty." );
         }
 
         [Test]
@@ -1052,7 +1047,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroupMembership( gmi ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( ex.Message, "Member unique Id cannot be empty." );
+            StringAssert.AreEqualIgnoringCase( ex.Message, "Member unique id cannot be empty." );
         }
 
         [Test]
@@ -1384,7 +1379,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUId( secureObjectUId, false ) );
 
             // Assert
-            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject unique Id cannot be empty." );
+            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject unique id cannot be empty." );
         }
 
         [Test]
@@ -1621,7 +1616,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             // Act
             // Assert
             Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembers( groupUId ) );
-            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "Group unique id cannot be empty.", ex.Message );
         }
 
 
@@ -1791,7 +1786,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             // Act
             // Assert
             Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembers( groupUId ) );
-            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+            StringAssert.AreEqualIgnoringCase( "Group unique id cannot be empty.", ex.Message );
         }
 
 
