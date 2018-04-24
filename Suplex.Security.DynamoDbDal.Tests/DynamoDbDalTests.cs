@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.ExceptionServices;
 using Amazon.DynamoDBv2.Model;
 using NUnit.Framework;
 using Suplex.Security.AclModel;
