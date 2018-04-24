@@ -472,8 +472,8 @@ namespace Suplex.Security.DynamoDbDal
         {
             SecureObject secureObject;
 
-            if ( secureObjectUId == null || secureObjectUId == Guid.Empty )
-                throw new Exception( "SecureObject unique Id cannot be null or empty." );
+            if ( secureObjectUId == Guid.Empty )
+                throw new Exception( "SecureObject unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
                 throw new Exception( "SecureObject table name must be specified." );
@@ -481,19 +481,14 @@ namespace Suplex.Security.DynamoDbDal
             try
             {
                 Table table = Table.LoadTable( _client, SecureObjectTable );
-                if ( table != null )
-                {
-                    Document document = table.GetItem( secureObjectUId );
-                    string json = document.ToJsonPretty();
-                    Console.WriteLine( json );
-                    secureObject = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
-                    if ( secureObject != null && !includeChildren )
-                        secureObject.Children = null;
-                }
-                else
-                {
-                    throw new Exception( $"Table {SecureObjectTable} cannot be found." );
-                }
+                Document document = table.GetItem( secureObjectUId );
+                if ( document == null )
+                    throw new Exception( "SecureObject cannot be found." );
+                string json = document.ToJsonPretty();
+                Console.WriteLine( json );
+                secureObject = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
+                if ( secureObject != null && !includeChildren )
+                    secureObject.Children = null;
             }
             catch ( Exception ex )
             {
@@ -503,7 +498,6 @@ namespace Suplex.Security.DynamoDbDal
             return secureObject;
         }
 
-        // TODO: Implement includeChildren
         public ISecureObject GetSecureObjectByUniqueName(string uniqueName, bool includeChildren)
         {
             SecureObject secureObject = null;
@@ -511,7 +505,7 @@ namespace Suplex.Security.DynamoDbDal
             List<SecureObject> secureObjectList = new List<SecureObject>();
 
             if ( string.IsNullOrWhiteSpace( uniqueName ) )
-                throw new Exception( "SecureObject unique Id cannot be null or empty." );
+                throw new Exception( "SecureObject unique name cannot be null or empty." );
 
             if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
                 throw new Exception( "SecureObject table name must be specified." );
@@ -519,30 +513,29 @@ namespace Suplex.Security.DynamoDbDal
             try
             {
                 Table table = Table.LoadTable( _client, SecureObjectTable );
-                if ( table != null )
+                ScanFilter scanFilter = new ScanFilter();
+                scanFilter.AddCondition( "UniqueName", ScanOperator.Equal, uniqueName );
+
+                Search search = table.Scan( scanFilter );
+
+                do
                 {
-                    ScanFilter scanFilter = new ScanFilter();
-                    scanFilter.AddCondition( "UniqueName", ScanOperator.Equal, uniqueName );
-
-                    Search search = table.Scan( scanFilter );
-
-                    do
+                    var documentList = search.GetNextSet();
+                    if ( documentList.Count == 0 )
+                        throw new Exception( "SecureObject cannot be found." );
+                    foreach ( Document document in documentList )
                     {
-                        var documentList = search.GetNextSet();
-                        foreach ( Document document in documentList )
-                        {
-                            string json = document.ToJsonPretty();
-                            SecureObject sb = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
-                            secureObjectList.Add( sb );
-                        }
-                    } while ( !search.IsDone );
+                        string json = document.ToJsonPretty();
+                        SecureObject sb = JsonConvert.DeserializeObject<SecureObject>( json, _settings );
+                        secureObjectList.Add( sb );
+                    }
+                } while ( !search.IsDone );
 
-                    if ( secureObjectList.Count > 0 )
-                        secureObject = secureObjectList.First();
-                }
-                else
+                if ( secureObjectList.Count > 0 )
                 {
-                    throw new Exception( $"Table {SecureObjectTable} cannot be found." );
+                    secureObject = secureObjectList.First();
+                    if ( !includeChildren )
+                        secureObject.Children = null;
                 }
             }
             catch ( Exception ex )
@@ -556,10 +549,17 @@ namespace Suplex.Security.DynamoDbDal
         public ISecureObject UpsertSecureObject(ISecureObject secureObject)
         {
             if ( secureObject == null )
-                return null;
+                throw new Exception( "SecureObject cannot be null." );
+
+            if ( secureObject.UId == Guid.Empty )
+                throw new Exception( "SecureObject unique id cannot be null." );
+
+
+            if ( string.IsNullOrWhiteSpace( secureObject.UniqueName ) )
+                throw new Exception( "SecureObject unique name cannot be null or empty." );
 
             if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
-                throw new Exception( "secureObject table name must be specified." );
+                throw new Exception( "SecureObject table name must be specified." );
 
             try
             {
@@ -567,14 +567,7 @@ namespace Suplex.Security.DynamoDbDal
                 Document doc = Document.FromJson( output );
 
                 Table table = Table.LoadTable( _client, SecureObjectTable );
-                if ( table != null )
-                {
-                    table.PutItem( doc );
-                }
-                else
-                {
-                    throw new Exception( $"Dynamo table {SecureObjectTable} cannot be found." );
-                }
+                table.PutItem( doc );
             }
             catch ( Exception ex )
             {
@@ -587,29 +580,22 @@ namespace Suplex.Security.DynamoDbDal
 
         public void DeleteSecureObject(Guid secureObjectUId)
         {
-            if ( secureObjectUId == null )
-                throw new Exception( "Group membership item cannot be null or empty." );
+            if ( secureObjectUId == Guid.Empty )
+                throw new Exception( "SecureObject unique id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( SecureObjectTable ) )
-                throw new Exception( "Group membership table name must be specified." );
+                throw new Exception( "SecureObject table name must be specified." );
 
             try
             {
                 Table table = Table.LoadTable( _client, SecureObjectTable );
-                if ( table != null )
+                table.DeleteItem( secureObjectUId );
+                Document deletedGroup = table.GetItem( secureObjectUId, new GetItemOperationConfig()
                 {
-                    table.DeleteItem( secureObjectUId );
-                    Document deletedGroup = table.GetItem( secureObjectUId, new GetItemOperationConfig()
-                    {
-                        ConsistentRead = true
-                    } );
-                    if ( deletedGroup != null )
-                        throw new Exception( "Secure object was not deleted successfully." );
-                }
-                else
-                {
-                    throw new Exception( $"Table {SecureObjectTable} cannot be found." );
-                }
+                    ConsistentRead = true
+                } );
+                if ( deletedGroup != null )
+                    throw new Exception( "Secure object was not deleted successfully." );
             }
             catch ( Exception ex )
             {

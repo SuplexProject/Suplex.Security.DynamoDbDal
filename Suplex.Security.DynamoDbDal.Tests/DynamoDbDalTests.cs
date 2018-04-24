@@ -1120,7 +1120,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
             };
             DynamoDbDal dal = new DynamoDbDal
             {
-                GroupMembershipTable = "Table-" + Guid.NewGuid()
+                GroupMembershipTable = _groupMembershipTable
             };
 
             // Act
@@ -1151,7 +1151,92 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void UpsertSecureObject_Valid_Succeeds()
+        public void UpsertSecureObject_Null_SecureObject_Throws_Exception()
+        {
+            // Arrange
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertSecureObject( null ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject cannot be null.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertSecureObject_Empty_SecureObject_UId_Throws_Exception()
+        {
+            // Arrange
+            SecureObject sObject = new SecureObject() { UId = Guid.Empty };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertSecureObject( sObject ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject unique id cannot be null.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertSecureObject_Null_Empty_Unique_Name_Throws_Exception()
+        {
+            // Arrange
+            SecureObject sObject = new SecureObject();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertSecureObject( sObject ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject unique name cannot be null or empty.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertSecureObject_Null_SecureObject_Table_Throws_Exception()
+        {
+            // Arrange
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertSecureObject( sObject ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject table name must be specified.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertSecureObject_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = "Table-" + Guid.NewGuid()
+            };
+
+            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertSecureObject( sObject ) );
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void UpsertSecureObject_Valid_Details_Succeeds()
         {
             SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
             DiscretionaryAcl topdacl = new DiscretionaryAcl
@@ -1166,13 +1251,107 @@ namespace Suplex.Security.DynamoDbDal.Tests
             {
                 SecureObjectTable = _secureObjectTable
             };
-            ISecureObject secureObject = dal.UpsertSecureObject( sObject );
-            Assert.AreEqual( secureObject.UId, sObject.UId );
-            Assert.AreEqual( secureObject.UniqueName, sObject.UniqueName );
+            dal.UpsertSecureObject( sObject );
+            ISecureObject retSecureObject = dal.GetSecureObjectByUId( sObject.UId.Value, false );
+            Assert.AreEqual( sObject.UId, retSecureObject.UId );
+            Assert.AreEqual( sObject.UniqueName, retSecureObject.UniqueName );
         }
 
         [Test]
-        public void DeleteSecureObject_Existing_Succeeds()
+        public void UpsertSecureObject_Existing_SecureObject_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            dal.UpsertSecureObject( sObject );
+            sObject.UniqueName = sObject.UniqueName + ".modified";
+            dal.UpsertSecureObject( sObject );
+            ISecureObject retSecureObject = dal.GetSecureObjectByUId( sObject.UId.Value, false );
+            Assert.AreEqual( sObject.UId, retSecureObject.UId );
+            Assert.AreEqual( sObject.UniqueName, retSecureObject.UniqueName );
+        }
+
+        [Test]
+        public void DeleteSecureObject_Empty_SecureObject_UId_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.Empty;
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteSecureObject( secureObjectUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject unique id cannot be empty.", ex.Message );
+        }
+
+        [Test]
+        public void DeleteSecureObject_Null_SecureObject_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteSecureObject( secureObjectUId ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject table name must be specified." );
+        }
+
+        [Test]
+        public void DeleteSecureObject_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = "Table-" + Guid.NewGuid()
+            };
+
+
+            // Act
+            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.DeleteSecureObject( secureObjectUId ) );
+
+            // Assert
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+
+        [Test]
+        public void DeleteSecureObject_Non_Existent_SecureObject_Succeeds()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+
+            // Act
+            // Assert
+            Assert.DoesNotThrow( () => dal.DeleteSecureObject( secureObjectUId ) );
+        }
+
+        [Test]
+        public void DeleteSecureObject_Existing_SecureObject_Succeeds()
         {
             SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
             DiscretionaryAcl topdacl = new DiscretionaryAcl
@@ -1193,7 +1372,77 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void GetSecureObjectByUId_Existing_Succeeds()
+        public void GetSecureObjectByUId_Empty_SecureObject_UId_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.Empty;
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUId( secureObjectUId, false ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject unique Id cannot be empty." );
+        }
+
+        [Test]
+        public void GetSecureObjectByUId_Null_SecureObject_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUId( secureObjectUId, false ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject table name must be specified." );
+        }
+
+        [Test]
+        public void GetSecureObjectByUId_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.GetSecureObjectByUId( secureObjectUId, false ) );
+
+            // Assert
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void GetSecureObjectByUId_Non_Existent_SecureObject_Throws_Exception()
+        {
+            // Arrange
+            Guid secureObjectUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUId( secureObjectUId, false ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject cannot be found.", ex.Message );
+        }
+
+        [Test]
+        public void GetSecureObjectByUId_Existing_SecureObject_Exclude_Children_Succeeds()
         {
             SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
             DiscretionaryAcl topdacl = new DiscretionaryAcl
@@ -1203,20 +1452,116 @@ namespace Suplex.Security.DynamoDbDal.Tests
                         new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
                     };
             sObject.Security.Dacl = topdacl;
+            sObject.Children.Add( new SecureObject() );
 
             DynamoDbDal dal = new DynamoDbDal
             {
                 SecureObjectTable = _secureObjectTable
             };
             dal.UpsertSecureObject( sObject );
-            ISecureObject secureObject = dal.GetSecureObjectByUId( sObject.UId.Value, false );
-            Assert.AreEqual( secureObject.UId, sObject.UId );
-            Assert.AreEqual( secureObject.UniqueName, sObject.UniqueName );
+            ISecureObject retSecureObject = dal.GetSecureObjectByUId( sObject.UId.Value, false );
+            Assert.AreEqual( sObject.UId, retSecureObject.UId );
+            Assert.AreEqual( sObject.UniqueName, retSecureObject.UniqueName );
+            Assert.IsEmpty( retSecureObject.Children );
+        }
+
+        [Test]
+        public void GetSecureObjectByUId_Existing_SecureObject_Include_Children_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+            sObject.Children.Add( new SecureObject() );
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            dal.UpsertSecureObject( sObject );
+            ISecureObject retSecureObject = dal.GetSecureObjectByUId( sObject.UId.Value, true );
+            Assert.AreEqual( sObject.UId, retSecureObject.UId );
+            Assert.AreEqual( sObject.UniqueName, retSecureObject.UniqueName );
+            Assert.IsNotEmpty( retSecureObject.Children );
         }
 
 
         [Test]
-        public void GetSecureObjectByUniqueName_Existing_Succeeds()
+        public void GetSecureObjectByUniqueName_Null_Empty_Unique_Name_Throws_Exception()
+        {
+            // Arrange
+            string uniqueName = "";
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUniqueName( uniqueName, false ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject unique name cannot be null or empty." );
+        }
+
+        [Test]
+        public void GetSecureObjectByUniqueName_Null_SecureObject_Table_Throws_Exception()
+        {
+            // Arrange
+            string uniqueName = _secureObjectPrefix + Guid.NewGuid();
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUniqueName( uniqueName, false ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "SecureObject table name must be specified." );
+        }
+
+        [Test]
+        public void GetSecureObjectByUniqueName_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            string uniqueName = _secureObjectPrefix + Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.GetSecureObjectByUniqueName( uniqueName, false ) );
+
+            // Assert
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void GetSecureObjectByUniqueName_Non_Existent_SecureObject_Throws_Exception()
+        {
+            // Arrange
+            string uniqueName = _secureObjectPrefix + Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.GetSecureObjectByUniqueName( uniqueName, false ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "SecureObject cannot be found.", ex.Message );
+        }
+
+        [Test]
+        public void GetSecureObjectByUniqueName_Existing_SecureObject_Exclude_Children_Succeeds()
         {
             SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
             DiscretionaryAcl topdacl = new DiscretionaryAcl
@@ -1226,15 +1571,41 @@ namespace Suplex.Security.DynamoDbDal.Tests
                         new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
                     };
             sObject.Security.Dacl = topdacl;
+            sObject.Children.Add( new SecureObject() );
 
             DynamoDbDal dal = new DynamoDbDal
             {
                 SecureObjectTable = _secureObjectTable
             };
             dal.UpsertSecureObject( sObject );
-            ISecureObject secureObject = dal.GetSecureObjectByUniqueName( sObject.UniqueName, false );
-            Assert.AreEqual( secureObject.UId, sObject.UId );
-            Assert.AreEqual( secureObject.UniqueName, sObject.UniqueName );
+            ISecureObject retSecureObject = dal.GetSecureObjectByUniqueName( sObject.UniqueName, false );
+            Assert.AreEqual( sObject.UId, retSecureObject.UId );
+            Assert.AreEqual( sObject.UniqueName, retSecureObject.UniqueName );
+            Assert.IsEmpty( retSecureObject.Children );
+        }
+
+        [Test]
+        public void GetSecureObjectByUniqueName_Existing_SecureObject_Include_Children_Succeeds()
+        {
+            SecureObject sObject = new SecureObject() { UniqueName = _secureObjectPrefix + Guid.NewGuid() };
+            DiscretionaryAcl topdacl = new DiscretionaryAcl
+                    {
+                        new AccessControlEntry<FileSystemRight> { Allowed = true, Right = FileSystemRight.FullControl },
+                        new AccessControlEntry<FileSystemRight> { Allowed = false, Right = FileSystemRight.Execute | FileSystemRight.List, Inheritable = false },
+                        new AccessControlEntry<UIRight> { Right= UIRight.Operate | UIRight.Visible }
+                    };
+            sObject.Security.Dacl = topdacl;
+            sObject.Children.Add( new SecureObject() );
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                SecureObjectTable = _secureObjectTable
+            };
+            dal.UpsertSecureObject( sObject );
+            ISecureObject retSecureObject = dal.GetSecureObjectByUniqueName( sObject.UniqueName, true );
+            Assert.AreEqual( sObject.UId, retSecureObject.UId );
+            Assert.AreEqual( sObject.UniqueName, retSecureObject.UniqueName );
+            Assert.IsNotEmpty( retSecureObject.Children );
         }
 
         [Test]
