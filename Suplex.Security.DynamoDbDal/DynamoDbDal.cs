@@ -311,50 +311,45 @@ namespace Suplex.Security.DynamoDbDal
         }
 
 
-        // TODO: Check with Steve on how to implement includeDisabledMembership for GetGroupMembers()
         public IEnumerable<GroupMembershipItem> GetGroupMembers(Guid groupUId, bool includeDisabledMembership = false)
         {
 
             List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
 
-            if ( groupUId == null )
-                throw new Exception( "Group unique Id cannot be null or empty." );
+            if ( groupUId == Guid.Empty )
+                throw new Exception( "Group unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
-                throw new Exception( "GroupMembershipItem table name must be specified." );
+                throw new Exception( "Group membership table name must be specified." );
 
             try
             {
                 Table table = Table.LoadTable( _client, GroupMembershipTable );
-                if ( table != null )
+                ScanFilter scanFilter = new ScanFilter();
+                scanFilter.AddCondition( "GroupUId", ScanOperator.Equal, groupUId );
+
+                Search search = table.Scan( scanFilter );
+
+                do
                 {
-                    ScanFilter scanFilter = new ScanFilter();
-                    scanFilter.AddCondition( "GroupUId", ScanOperator.Equal, groupUId );
+                    var documentList = search.GetNextSet();
+                    if ( documentList.Count == 0 )
+                        throw new Exception( "Group members cannot be found." );
 
-                    Search search = table.Scan( scanFilter );
-
-                    do
+                    foreach ( Document document in documentList )
                     {
-                        var documentList = search.GetNextSet();
-                        foreach ( Document document in documentList )
+                        string json = document.ToJsonPretty();
+                        GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
+                        if ( includeDisabledMembership )
                         {
-                            string json = document.ToJsonPretty();
-                            GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
-                            if ( includeDisabledMembership )
-                            {
-                                groupMembershipList.Add( item );
-                            }
-                            else if ( item.Member.IsEnabled )
-                            {
-                                groupMembershipList.Add( item );
-                            }
+                            groupMembershipList.Add( item );
                         }
-                    } while ( !search.IsDone );
-                }
-                else
-                {
-                    throw new Exception( $"Table {GroupMembershipTable} cannot be found." );
-                }
+                        else if ( item.Member != null && item.Member.IsEnabled )
+                        {
+                            groupMembershipList.Add( item );
+                        }
+                    }
+                } while ( !search.IsDone );
             }
             catch ( Exception ex )
             {
@@ -364,49 +359,43 @@ namespace Suplex.Security.DynamoDbDal
             return groupMembershipList;
         }
 
-        // TODO: Check with Steve on how to implement includeDisabledMembership for GetGroupMembership()
         public IEnumerable<GroupMembershipItem> GetGroupMembership(Guid memberUId, bool includeDisabledMembership = false)
         {
             List<GroupMembershipItem> groupMembershipList = new List<GroupMembershipItem>();
 
-            if ( memberUId == null )
-                throw new Exception( "Member unique Id cannot be null or empty." );
+            if ( memberUId == Guid.Empty )
+                throw new Exception( "Member unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
-                throw new Exception( "GroupMembershipItem table name must be specified." );
+                throw new Exception( "Group membership table name must be specified." );
 
             try
             {
                 Table table = Table.LoadTable( _client, GroupMembershipTable );
-                if ( table != null )
+                ScanFilter scanFilter = new ScanFilter();
+                scanFilter.AddCondition( "MemberUId", ScanOperator.Equal, memberUId );
+
+                Search search = table.Scan( scanFilter );
+
+                do
                 {
-                    ScanFilter scanFilter = new ScanFilter();
-                    scanFilter.AddCondition( "MemberUId", ScanOperator.Equal, memberUId );
-
-                    Search search = table.Scan( scanFilter );
-
-                    do
+                    var documentList = search.GetNextSet();
+                    if ( documentList.Count == 0 )
+                        throw new Exception( "Group members cannot be found." );
+                    foreach ( Document document in documentList )
                     {
-                        var documentList = search.GetNextSet();
-                        foreach ( Document document in documentList )
+                        string json = document.ToJsonPretty();
+                        GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
+                        if ( includeDisabledMembership )
                         {
-                            string json = document.ToJsonPretty();
-                            GroupMembershipItem item = JsonConvert.DeserializeObject<GroupMembershipItem>( json, _settings );
-                            if ( includeDisabledMembership )
-                            {
-                                groupMembershipList.Add( item );
-                            }
-                            else if ( item.Member.IsEnabled )
-                            {
-                                groupMembershipList.Add( item );
-                            }
+                            groupMembershipList.Add( item );
                         }
-                    } while ( !search.IsDone );
-                }
-                else
-                {
-                    throw new Exception( $"Table {GroupMembershipTable} cannot be found." );
-                }
+                        else if ( item.Member != null && item.Member.IsEnabled )
+                        {
+                            groupMembershipList.Add( item );
+                        }
+                    }
+                } while ( !search.IsDone );
             }
             catch ( Exception ex )
             {
@@ -419,10 +408,16 @@ namespace Suplex.Security.DynamoDbDal
         public GroupMembershipItem UpsertGroupMembership(GroupMembershipItem groupMembershipItem)
         {
             if ( groupMembershipItem == null )
-                return null;
+                throw new Exception( "Group membership cannot be null." );
+
+            if ( groupMembershipItem.GroupUId == Guid.Empty )
+                throw new Exception( "Group unique Id cannot be empty." );
+
+            if ( groupMembershipItem.MemberUId == Guid.Empty )
+                throw new Exception( "Member unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
-                throw new Exception( "GroupMembershipItem table name must be specified." );
+                throw new Exception( "Group membership table name must be specified." );
 
             try
             {
@@ -430,14 +425,7 @@ namespace Suplex.Security.DynamoDbDal
                 Document doc = Document.FromJson( output );
 
                 Table table = Table.LoadTable( _client, GroupMembershipTable );
-                if ( table != null )
-                {
-                    table.PutItem( doc );
-                }
-                else
-                {
-                    throw new Exception( $"Dynamo table {GroupMembershipTable} cannot be found." );
-                }
+                table.PutItem( doc );
             }
             catch ( Exception ex )
             {
@@ -451,7 +439,13 @@ namespace Suplex.Security.DynamoDbDal
         {
 
             if ( groupMembershipItem == null )
-                throw new Exception( "Group membership item cannot be null or empty." );
+                throw new Exception( "Group membership cannot be null." );
+
+            if ( groupMembershipItem.GroupUId == Guid.Empty )
+                throw new Exception( "Group unique Id cannot be empty." );
+
+            if ( groupMembershipItem.MemberUId == Guid.Empty )
+                throw new Exception( "Member unique Id cannot be empty." );
 
             if ( string.IsNullOrWhiteSpace( GroupMembershipTable ) )
                 throw new Exception( "Group membership table name must be specified." );
@@ -459,20 +453,13 @@ namespace Suplex.Security.DynamoDbDal
             try
             {
                 Table table = Table.LoadTable( _client, GroupMembershipTable );
-                if ( table != null )
+                table.DeleteItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId );
+                Document deletedGroup = table.GetItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId, new GetItemOperationConfig()
                 {
-                    table.DeleteItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId );
-                    Document deletedGroup = table.GetItem( groupMembershipItem.GroupUId, groupMembershipItem.MemberUId, new GetItemOperationConfig()
-                    {
-                        ConsistentRead = true
-                    } );
-                    if ( deletedGroup != null )
-                        throw new Exception( "Group membership item was not deleted successfully." );
-                }
-                else
-                {
-                    throw new Exception( $"Table {GroupMembershipTable} cannot be found." );
-                }
+                    ConsistentRead = true
+                } );
+                if ( deletedGroup != null )
+                    throw new Exception( "Group membership item was not deleted successfully." );
             }
             catch ( Exception ex )
             {

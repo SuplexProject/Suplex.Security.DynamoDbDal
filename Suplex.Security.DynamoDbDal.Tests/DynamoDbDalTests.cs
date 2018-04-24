@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.ExceptionServices;
 using Amazon.DynamoDBv2.Model;
 using NUnit.Framework;
 using Suplex.Security.AclModel;
@@ -799,9 +800,26 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void UpsertGroupMembership_Valid_Succeeds()
+        public void UpsertGroupMembership_Null_Group_Membership_Throws_Exception()
         {
-            Guid groupUId = Guid.NewGuid();
+            // Arrange
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroupMembership( null ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group membership cannot be null.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertGroupMembership_Null_Group_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.Empty;
             Guid memberUId = Guid.NewGuid();
 
             GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
@@ -815,9 +833,299 @@ namespace Suplex.Security.DynamoDbDal.Tests
             {
                 GroupMembershipTable = _groupMembershipTable
             };
-            GroupMembershipItem upsertedGroupMembershipItem = dal.UpsertGroupMembership( groupMembershipItem );
-            Assert.AreEqual( upsertedGroupMembershipItem.GroupUId, groupMembershipItem.GroupUId );
-            Assert.AreEqual( upsertedGroupMembershipItem.MemberUId, groupMembershipItem.MemberUId );
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroupMembership( groupMembershipItem ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertGroupMembership_Null_Group_Membership_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroupMembership( groupMembershipItem ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group membership table name must be specified.", ex.Message );
+        }
+
+
+        [Test]
+        public void UpsertGroupMembership_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = "Table-" + Guid.NewGuid()
+            };
+
+            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertGroupMembership( groupMembershipItem ) );
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+        [Test]
+        public void UpsertGroupMembership_Valid_Details_Succeeds()
+        {
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = false,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                Group = group,
+                Member = user,
+                GroupUId = group.UId.Value,
+                MemberUId = user.UId.Value,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            dal.UpsertGroupMembership( groupMembershipItem );
+            var retMembership = dal.GetGroupMembership( user.UId.Value, true );
+
+            // Assert
+            foreach ( GroupMembershipItem gmi in retMembership )
+            {
+                Assert.AreEqual( group.UId, gmi.GroupUId );
+                Assert.AreEqual( user.UId, gmi.MemberUId );
+            }
+        }
+
+        [Test]
+        public void UpsertGroupMembership_Existing_Group_Membership_Succeeds()
+        {
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = false,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                Group = group,
+                Member = user,
+                GroupUId = group.UId.Value,
+                MemberUId = user.UId.Value,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            dal.UpsertGroupMembership( groupMembershipItem );
+            groupMembershipItem.IsMemberUser = false;
+            dal.UpsertGroupMembership( groupMembershipItem );
+            var retMembership = dal.GetGroupMembership( user.UId.Value, true );
+
+            // Assert
+            foreach ( GroupMembershipItem gmi in retMembership )
+            {
+                Assert.AreEqual( groupMembershipItem.GroupUId, gmi.GroupUId );
+                Assert.AreEqual( groupMembershipItem.MemberUId, gmi.MemberUId );
+                Assert.AreEqual( groupMembershipItem.IsMemberUser, gmi.IsMemberUser );
+            }
+        }
+
+        [Test]
+        public void DeleteGroupMembership_Null_Group_Membership_Throws_Exception()
+        {
+            // Arrange
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroupMembership( null ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group membership cannot be null.", ex.Message );
+        }
+
+        [Test]
+        public void DeleteGroupMembership_Empty_Group_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.Empty;
+            Guid memberUId = Guid.NewGuid();
+            GroupMembershipItem gmi = new GroupMembershipItem
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroupMembership( gmi ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "Group unique Id cannot be empty." );
+        }
+
+        [Test]
+        public void DeleteGroupMembership_Empty_Member_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.Empty;
+            GroupMembershipItem gmi = new GroupMembershipItem
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroupMembership( gmi ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( ex.Message, "Member unique Id cannot be empty." );
+        }
+
+        [Test]
+        public void DeleteGroupMembership_Null_Group_Membership_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+            GroupMembershipItem gmi = new GroupMembershipItem
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = ""
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.DeleteGroupMembership( gmi ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Group membership table name must be specified.", ex.Message );
+        }
+
+        [Test]
+        public void DeleteGroupMembership_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+            GroupMembershipItem gmi = new GroupMembershipItem
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            Exception ex = Assert.Throws<ResourceNotFoundException>( () => dal.DeleteGroupMembership( gmi ) );
+
+            // Assert
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+
+        [Test]
+        public void DeleteGroupMembership_Non_Existent_Group_Membership_Succeeds()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.NewGuid();
+            GroupMembershipItem gmi = new GroupMembershipItem
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            // Assert
+            Assert.DoesNotThrow( () => dal.DeleteGroupMembership( gmi ) );
         }
 
         [Test]
@@ -930,15 +1238,104 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void GetGroupMembers_Existing_Group_Succeeds()
+        public void GetGroupMembers_Empty_GroupUId_Throws_Exception()
         {
+            // Arrange
+            Guid groupUId = Guid.Empty;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembers( groupUId ) );
+            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+        }
+
+
+        [Test]
+        public void GetGroupMembers_Null_Group_Membership_Table_Throws_Exception()
+        {
+            // Arrange
             Guid groupUId = Guid.NewGuid();
-            Guid memberUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = ""
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembers( groupUId ) );
+            StringAssert.AreEqualIgnoringCase( "Group membership table name must be specified.", ex.Message );
+        }
+
+        [Test]
+        public void GetGroupMembers_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            // Assert
+            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.GetGroupMembers( groupUId ) );
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+
+        [Test]
+        public void GetGroupMembers_Non_Existent_Group_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembers( groupUId ) );
+            StringAssert.Contains( "Group members cannot be found.", ex.Message );
+        }
+
+        [Test]
+        public void GetGroupMembers_Existing_Group_Include_Disabled_Membership_Succeeds()
+        {
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = false,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
 
             GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
             {
-                GroupUId = groupUId,
-                MemberUId = memberUId,
+                Group = group,
+                Member = user,
+                GroupUId = group.UId.Value,
+                MemberUId = user.UId.Value,
                 IsMemberUser = true
             };
 
@@ -946,26 +1343,48 @@ namespace Suplex.Security.DynamoDbDal.Tests
             {
                 GroupMembershipTable = _groupMembershipTable
             };
+
+            // Act
             dal.UpsertGroupMembership( groupMembershipItem );
+            var retMembership = dal.GetGroupMembers( group.UId.Value, true );
 
-            var retrievedGroups = dal.GetGroupMembers( groupUId );
-
-            foreach ( var gmi in retrievedGroups )
+            // Assert
+            foreach ( GroupMembershipItem gmi in retMembership )
             {
-                Assert.AreEqual( gmi.GroupUId, groupUId );
+                Assert.AreEqual( group.UId, gmi.GroupUId );
+                Assert.AreEqual( user.UId, gmi.MemberUId );
             }
         }
 
         [Test]
-        public void GetGroupMembership_Existing_Group_Succeeds()
+        public void GetGroupMembers_Existing_Group_Exclude_Disabled_Membership_Succeeds()
         {
-            Guid groupUId = Guid.NewGuid();
-            Guid memberUId = Guid.NewGuid();
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = false,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
 
             GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
             {
-                GroupUId = groupUId,
-                MemberUId = memberUId,
+                Group = group,
+                Member = user,
+                GroupUId = group.UId.Value,
+                MemberUId = user.UId.Value,
                 IsMemberUser = true
             };
 
@@ -973,14 +1392,189 @@ namespace Suplex.Security.DynamoDbDal.Tests
             {
                 GroupMembershipTable = _groupMembershipTable
             };
+
+            // Act
             dal.UpsertGroupMembership( groupMembershipItem );
-
-            var retrievedGroups = dal.GetGroupMembership( memberUId );
-
-            foreach ( var gmi in retrievedGroups )
+            var retMembership = dal.GetGroupMembers( group.UId.Value, false );
+            int count = 0;
+            using ( var enumerator = retMembership.GetEnumerator() )
             {
-                Assert.AreEqual( gmi.MemberUId, memberUId );
+                while ( enumerator.MoveNext() )
+                    count++;
             }
+
+            // Assert
+            Assert.AreEqual( 0, count );
+        }
+
+        [Test]
+        public void GetGroupMembers_Empty_MemberUId_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.Empty;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembers( groupUId ) );
+            StringAssert.AreEqualIgnoringCase( "Group unique Id cannot be empty.", ex.Message );
+        }
+
+
+        [Test]
+        public void GetGroupMembership_Null_Group_Membership_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid memberUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = ""
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembership( memberUId ) );
+            StringAssert.AreEqualIgnoringCase( "Group membership table name must be specified.", ex.Message );
+        }
+
+        [Test]
+        public void GetGroupMembership_Non_Existent_Table_Throws_Exception()
+        {
+            // Arrange
+            Guid memberUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = "Table-" + Guid.NewGuid()
+            };
+
+            // Act
+            // Assert
+            ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.GetGroupMembership( memberUId ) );
+            StringAssert.Contains( "Requested resource not found: Table", ex.Message );
+        }
+
+
+        [Test]
+        public void GetGroupMembership_Non_Existent_Member_Throws_Exception()
+        {
+            // Arrange
+            Guid memberUId = Guid.NewGuid();
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembership( memberUId ) );
+            StringAssert.Contains( "Group members cannot be found.", ex.Message );
+        }
+
+        [Test]
+        public void GetGroupMembership_Existing_Member_Include_Disabled_Membership_Succeeds()
+        {
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = false,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                Group = group,
+                Member = user,
+                GroupUId = group.UId.Value,
+                MemberUId = user.UId.Value,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            dal.UpsertGroupMembership( groupMembershipItem );
+            var retMembership = dal.GetGroupMembership( user.UId.Value, true );
+
+            // Assert
+            foreach ( GroupMembershipItem gmi in retMembership )
+            {
+                Assert.AreEqual( group.UId, gmi.GroupUId );
+                Assert.AreEqual( user.UId, gmi.MemberUId );
+            }
+        }
+
+        [Test]
+        public void GetGroupMembership_Existing_Member_Exclude_Disabled_Membership_Succeeds()
+        {
+            // Arrange
+            Group group = new Group()
+            {
+                Name = _groupPrefix,
+                IsBuiltIn = false,
+                IsEnabled = true,
+                IsLocal = false
+            };
+            group.Name = group.Name + group.UId;
+
+            User user = new User()
+            {
+                Name = _userPrefix,
+                IsBuiltIn = true,
+                IsEnabled = false,
+                IsLocal = true
+            };
+            user.Name = user.Name + user.UId;
+
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                Group = group,
+                Member = user,
+                GroupUId = group.UId.Value,
+                MemberUId = user.UId.Value,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            dal.UpsertGroupMembership( groupMembershipItem );
+            var retMembership = dal.GetGroupMembership( user.UId.Value, false );
+            int count = 0;
+            using ( var enumerator = retMembership.GetEnumerator() )
+            {
+                while ( enumerator.MoveNext() )
+                    count++;
+            }
+
+            // Assert
+            Assert.AreEqual( 0, count );
         }
     }
 }
