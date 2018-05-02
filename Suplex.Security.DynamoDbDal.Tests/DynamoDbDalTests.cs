@@ -663,6 +663,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
         [Test]
         public void UpsertGroup_Valid_Details_Succeeds()
         {
+            // Arrange
             Group group = new Group()
             {
                 Name = _groupPrefix,
@@ -676,7 +677,11 @@ namespace Suplex.Security.DynamoDbDal.Tests
             {
                 GroupTable = _groupTable
             };
+
+            // Act
             Group upsertedGroup = dal.UpsertGroup( group );
+
+            // Assert
             Assert.AreEqual( group.UId, upsertedGroup.UId );
             Assert.AreEqual( group.Name, upsertedGroup.Name );
             Assert.AreEqual( group.IsEnabled, upsertedGroup.IsEnabled );
@@ -685,6 +690,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
         [Test]
         public void UpsertGroup_Non_Existent_Table_Throws_Exception()
         {
+            // Arrange
             Group group = new Group()
             {
                 Name = _groupPrefix,
@@ -699,6 +705,8 @@ namespace Suplex.Security.DynamoDbDal.Tests
                 GroupTable = Guid.NewGuid().ToString()
             };
 
+            // Act
+            // Arrange
             ResourceNotFoundException ex = Assert.Throws<ResourceNotFoundException>( () => dal.UpsertGroup( group ) );
             StringAssert.Contains( "Requested resource not found: Table", ex.Message );
         }
@@ -810,7 +818,7 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
         [Test]
-        public void UpsertGroupMembership_Null_Group_Throws_Exception()
+        public void UpsertGroupMembership_Empty_Group_Throws_Exception()
         {
             // Arrange
             Guid groupUId = Guid.Empty;
@@ -833,6 +841,32 @@ namespace Suplex.Security.DynamoDbDal.Tests
 
             // Assert
             StringAssert.AreEqualIgnoringCase( "Group unique id cannot be empty.", ex.Message );
+        }
+
+        [Test]
+        public void UpsertGroupMembership_Empty_Member_Throws_Exception()
+        {
+            // Arrange
+            Guid groupUId = Guid.NewGuid();
+            Guid memberUId = Guid.Empty;
+
+            GroupMembershipItem groupMembershipItem = new GroupMembershipItem()
+            {
+                GroupUId = groupUId,
+                MemberUId = memberUId,
+                IsMemberUser = true
+            };
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            Exception ex = Assert.Throws<Exception>( () => dal.UpsertGroupMembership( groupMembershipItem ) );
+
+            // Assert
+            StringAssert.AreEqualIgnoringCase( "Member unique id cannot be empty.", ex.Message );
         }
 
         [Test]
@@ -1790,6 +1824,22 @@ namespace Suplex.Security.DynamoDbDal.Tests
         }
 
 
+        [Test]
+        public void GetGroupMembership_Empty_MemberUId_Throws_Exception()
+        {
+            // Arrange
+            Guid memberUId = Guid.Empty;
+
+            DynamoDbDal dal = new DynamoDbDal
+            {
+                GroupMembershipTable = _groupMembershipTable
+            };
+
+            // Act
+            // Assert
+            Exception ex = Assert.Throws<Exception>( () => dal.GetGroupMembership( memberUId ) );
+            StringAssert.AreEqualIgnoringCase( "Member unique id cannot be empty.", ex.Message );
+        }
         [Test]
         public void GetGroupMembership_Null_Group_Membership_Table_Throws_Exception()
         {
